@@ -27,7 +27,7 @@ def readData(filepath):
 
 # from a feasible solution, construct the workforce schedule as pandas dataframe
 def generateSchedule(x,z,nr_employees, nr_days, nr_slots, list_employees, days, slots, input_days):
-    column_names = ["Employee", "Date", "Day", "Start", "End"]
+    column_names = ["Employee", "Date", "Day", "Start", "End", "Duration_hrs"]
     plan = pd.DataFrame(columns = column_names)
 
     rows = []
@@ -48,7 +48,8 @@ def generateSchedule(x,z,nr_employees, nr_days, nr_slots, list_employees, days, 
         
             start = None
             end = None
-            
+            duration = None
+
             for s in range(nr_slots):
                 if z[m][t][s].x >= 0.99:
                     start = slots[s]
@@ -62,10 +63,21 @@ def generateSchedule(x,z,nr_employees, nr_days, nr_slots, list_employees, days, 
             # check if employee works on given day
             if start is not None and end is not None:
                 start = datetime.datetime(date_datetime.year, date_datetime.month, date_datetime.day, start.hour, start.minute)
+                print('start',start)
                 end = datetime.datetime(date_datetime.year, date_datetime.month, date_datetime.day, end.hour, end.minute) + datetime.timedelta(minutes=30)
-                
+                print('end',end)
+                print('difference', end-start)
+                # duration= datetime.datetime(date_datetime.year, date_datetime.month, date_datetime.day, end.hour -start.hour ,
+                #                         end.minute - start.minute) + datetime.timedelta(minutes=30)
+
+                duration = datetime.datetime(date_datetime.year, date_datetime.month, date_datetime.day)+(end-start)
+                #duration = end-start
+                print('date difference', duration)
+
+            dic["Duration_hrs"] = duration
             dic["Start"] = start
             dic["End"] = end
+
         
             rows.append(dic)
 
@@ -81,14 +93,17 @@ def getGantt(plan):
     df["Resource"] = df["Employee"]
     df = df.rename(columns = {"Employee" : "Task", "Start" : "Start", "End": "Finish"})
     
-    fig = ff.create_gantt(df,index_col='Resource', group_tasks=True, title = "Workforce schedule")
+    fig = ff.create_gantt(df,index_col='Resource', group_tasks=True, title = "Workforce schedule",
+                          showgrid_x=True, showgrid_y=True)
     return fig
 
 # calculate weekly working times for the employees (including minus hours and overtime)
 def calculateWorkingTimes(employees, plan, data_employees):
-    
+
+    # initialises all employees to be zero
     workingTimes = dict.fromkeys(employees,0)
-    
+
+    #print('working_Times',workingTimes)
 
     for key, row in plan.iterrows():
         employee = row["Employee"]
@@ -96,8 +111,11 @@ def calculateWorkingTimes(employees, plan, data_employees):
         end = row["End"]
         if pd.isna(start):
             continue
-        
+
         timeDiff = end - start
+        print('start', start)
+        print('end', end)
+        print('timeDiff',timeDiff)
         hours = timeDiff.total_seconds() / 3600
 
         workingTimes[employee] += hours
@@ -128,7 +146,7 @@ def writeToExcel(plan, weeklyHours):
     plan_excel["Date"] = plan_excel["Date"].dt.strftime('%d.%m.%Y') 
     plan_excel["Start"] = plan_excel["Start"].dt.strftime("%H:%M")
     plan_excel["End"] = plan_excel["End"].dt.strftime("%H:%M")
-    
+    plan_excel["Duration_hrs"] = plan_excel["Duration_hrs"].dt.strftime("%H:%M")
 
     with pd.ExcelWriter("Solution.xlsx", engine='xlsxwriter') as writer:
     
@@ -370,7 +388,7 @@ if solved:
     #gantt.show()
     
     # create HTML file for gantt chart so that it can be deployed
-    pio.write_html(gantt, file="index.html", auto_open=True)
+    #pio.write_html(gantt, file="index.html", auto_open=True)
     
     # generate solution as excel file
     weeklyTimes = calculateWorkingTimes(list_employees, plan, data_employees)

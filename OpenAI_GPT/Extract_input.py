@@ -1,7 +1,7 @@
 import pandas as pd
 
 def Extract_input(filepath):
-    data_employees = pd.read_excel(filepath, sheet_name="Employees").set_index("Name")
+    data_employees = pd.read_excel(filepath, sheet_name="Employees")
     demand = pd.read_excel(filepath, sheet_name="Demand").set_index("Day")
     parameters = pd.read_excel(filepath, sheet_name="Parameters").set_index("Parameter")
     input_days = pd.read_excel(filepath, sheet_name="Days").set_index("Day")
